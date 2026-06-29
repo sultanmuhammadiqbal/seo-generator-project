@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Generate Meta Title, Meta Description, dan Deskripsi Produk SEO-friendly secara otomatis. Mendukung proses satu produk maupun bulk via CSV." />
+  <title>SEO & Product Description Generator | AI-Powered</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- PapaParse CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <style>
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #080e1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      margin: 0;
+    }
+
+    /* ── Orbs ── */
+    .orb {
+      position: fixed; border-radius: 50%;
+      filter: blur(90px); pointer-events: none; z-index: 0;
+    }
+    .orb-1 {
+      width: 560px; height: 560px;
+      background: radial-gradient(circle, rgba(99,102,241,0.16) 0%, transparent 70%);
+      top: -140px; left: -140px;
+      animation: orbFloat1 12s ease-in-out infinite alternate;
+    }
+    .orb-2 {
+      width: 440px; height: 440px;
+      background: radial-gradient(circle, rgba(124,58,237,0.13) 0%, transparent 70%);
+      bottom: -70px; right: -110px;
+      animation: orbFloat2 16s ease-in-out infinite alternate;
+    }
+    .orb-3 {
+      width: 340px; height: 340px;
+      background: radial-gradient(circle, rgba(16,185,129,0.09) 0%, transparent 70%);
+      top: 40%; left: 58%;
+      animation: orbFloat3 20s ease-in-out infinite alternate;
+    }
+    @keyframes orbFloat1 { from { transform: translate(0,0) scale(1); } to { transform: translate(80px,60px) scale(1.1); } }
+    @keyframes orbFloat2 { from { transform: translate(0,0) scale(1); } to { transform: translate(-60px,-80px) scale(1.15); } }
+    @keyframes orbFloat3 { from { transform: translate(0,0) scale(1); } to { transform: translate(40px,50px) scale(0.9); } }
+
+    /* ── Page wrapper ── */
+    .page-wrapper { position: relative; z-index: 10; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── AI Badge ── */
+    .ai-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 9999px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(124,58,237,0.2));
+      border: 1px solid rgba(99,102,241,0.35);
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #a5b4fc; margin-bottom: 24px;
+    }
+    .badge-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: #34d399;
+      animation: pulseDot 2.5s ease-in-out infinite;
+    }
+    @keyframes pulseDot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(0.75); } }
+
+    /* ── Heading ── */
+    .heading-gradient { font-family: 'Outfit', sans-serif; font-weight: 800; line-height: 1.15; margin-bottom: 16px; color: #e2e8f0; }
+    .heading-sub {
+      display: block;
+      background: linear-gradient(90deg, #818cf8, #c084fc, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    /* ── Glass card ── */
+    .glass-card {
+      background: rgba(15,23,42,0.75);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.06) inset;
+      padding: 32px; margin-bottom: 24px;
+    }
+
+    /* ── Section icon ── */
+    .section-icon {
+      width: 38px; height: 38px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .section-icon.purple { background: linear-gradient(135deg, #6366f1, #7c3aed); box-shadow: 0 0 16px rgba(99,102,241,0.35); }
+    .section-icon.teal   { background: linear-gradient(135deg, #0ea5e9, #6366f1); box-shadow: 0 0 16px rgba(14,165,233,0.3); }
+    .section-icon.green  { background: linear-gradient(135deg, #10b981, #0d9488); box-shadow: 0 0 16px rgba(16,185,129,0.3); }
+    .section-icon.amber  { background: linear-gradient(135deg, #f59e0b, #ef4444); box-shadow: 0 0 16px rgba(245,158,11,0.3); }
+
+    /* ── Tab switcher ── */
+    .tab-bar {
+      display: flex; gap: 4px; padding: 4px;
+      background: rgba(0,0,0,0.3); border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 28px;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px 16px; border-radius: 10px; border: none;
+      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px;
+      transition: all 0.25s ease; color: #64748b; background: transparent;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(99,102,241,0.25), rgba(124,58,237,0.2));
+      color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3);
+      box-shadow: 0 2px 12px rgba(99,102,241,0.2);
+    }
+    .tab-btn:not(.active):hover { color: #94a3b8; background: rgba(255,255,255,0.04); }
+
+    /* ── Tab panels ── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Drag & drop zone ── */
+    .drop-zone {
+      border: 2px dashed rgba(99,102,241,0.35);
+      border-radius: 16px;
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      background: rgba(99,102,241,0.04);
+      transition: all 0.25s ease;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: rgba(99,102,241,0.7);
+      background: rgba(99,102,241,0.09);
+      box-shadow: 0 0 28px rgba(99,102,241,0.15), inset 0 0 28px rgba(99,102,241,0.04);
+    }
+    .drop-zone.drag-over { transform: scale(1.01); }
+    .drop-zone.has-file {
+      border-color: rgba(16,185,129,0.5);
+      background: rgba(16,185,129,0.05);
+    }
+    #csvFileInput { display: none; }
+
+    .drop-icon {
+      width: 52px; height: 52px; margin: 0 auto 16px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(124,58,237,0.15));
+      border: 1px solid rgba(99,102,241,0.3);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .btn-upload {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 20px; border-radius: 10px; cursor: pointer;
+      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700;
+      color: #a5b4fc; border: 1px solid rgba(99,102,241,0.45);
+      background: rgba(99,102,241,0.12);
+      transition: all 0.2s ease; margin-top: 14px;
+    }
+    .btn-upload:hover {
+      background: rgba(99,102,241,0.22); border-color: rgba(99,102,241,0.65);
+      box-shadow: 0 0 16px rgba(99,102,241,0.2);
+    }
+
+    /* ── CSV format hint ── */
+    .csv-hint-box {
+      background: rgba(14,165,233,0.07);
+      border: 1px solid rgba(14,165,233,0.2);
+      border-radius: 12px; padding: 14px 18px; margin-top: 18px;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .csv-hint-icon { flex-shrink: 0; margin-top: 2px; color: #38bdf8; }
+    .csv-hint-title { font-size: 12px; font-weight: 700; color: #7dd3fc; margin-bottom: 6px; }
+    .csv-hint-cols { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .col-tag {
+      font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px;
+      font-family: 'Courier New', monospace; letter-spacing: 0.03em;
+    }
+    .col-tag.required { background: rgba(99,102,241,0.18); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); }
+    .col-tag.optional { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.25); }
+
+    /* ── File status bar ── */
+    .file-status {
+      display: none; align-items: center; gap: 10px;
+      margin-top: 14px; padding: 10px 16px;
+      background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25);
+      border-radius: 10px;
+    }
+    .file-status.show { display: flex; }
+    .file-status-icon { color: #34d399; flex-shrink: 0; }
+    .file-status-name { font-size: 13px; font-weight: 600; color: #6ee7b7; }
+    .file-status-meta { font-size: 12px; color: #475569; margin-left: auto; }
+    .btn-clear-file {
+      background: none; border: none; cursor: pointer; color: #64748b;
+      padding: 2px 6px; border-radius: 6px; transition: color 0.2s;
+      font-size: 16px; line-height: 1;
+    }
+    .btn-clear-file:hover { color: #f87171; }
+
+    /* ── CSV Preview table ── */
+    #previewSection { display: none; margin-top: 24px; }
+    #previewSection.show { display: block; }
+
+    .preview-label {
+      font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: #64748b; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .preview-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+      background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.3);
+      text-transform: none; letter-spacing: 0;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+    table.preview-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    table.preview-table thead tr {
+      background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(124,58,237,0.12));
+      border-bottom: 1px solid rgba(99,102,241,0.25);
+    }
+    table.preview-table thead th {
+      padding: 10px 14px; text-align: left;
+      font-weight: 700; font-size: 11px; letter-spacing: 0.05em;
+      color: #a5b4fc; text-transform: uppercase; white-space: nowrap;
+    }
+    table.preview-table tbody tr {
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.15s;
+    }
+    table.preview-table tbody tr:last-child { border-bottom: none; }
+    table.preview-table tbody tr:hover { background: rgba(99,102,241,0.06); }
+    table.preview-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+    table.preview-table tbody tr:nth-child(even):hover { background: rgba(99,102,241,0.06); }
+    table.preview-table tbody td {
+      padding: 9px 14px; color: #cbd5e1;
+      max-width: 220px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+      vertical-align: middle;
+    }
+    table.preview-table tbody td:first-child { font-weight: 600; color: #e2e8f0; }
+    .row-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(99,102,241,0.15); color: #818cf8;
+      font-size: 10px; font-weight: 700; flex-shrink: 0;
+    }
+    .preview-footer {
+      font-size: 11.5px; color: #475569; margin-top: 10px; text-align: right;
+    }
+
+    /* ── Bulk Generate button ── */
+    .btn-bulk {
+      width: 100%; padding: 15px 24px; border-radius: 14px; border: none; cursor: pointer;
+      font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700; color: #fff;
+      background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 55%, #8b5cf6 100%);
+      box-shadow: 0 4px 24px rgba(14,165,233,0.4);
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      position: relative; overflow: hidden;
+      transition: transform 0.25s, box-shadow 0.25s;
+      margin-top: 20px;
+    }
+    .btn-bulk::before {
+      content: ''; position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      transition: left 0.5s ease;
+    }
+    .btn-bulk:hover::before { left: 100%; }
+    .btn-bulk:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99,102,241,0.6); }
+    .btn-bulk:active { transform: translateY(0); }
+    .btn-bulk:disabled {
+      opacity: 0.45; cursor: not-allowed; transform: none;
+      box-shadow: 0 2px 10px rgba(14,165,233,0.15);
+    }
+
+    /* ── Progress bar (bulk) ── */
+    .bulk-progress-wrap { display: none; margin-top: 16px; }
+    .bulk-progress-wrap.show { display: block; }
+    .bulk-progress-bar-bg {
+      height: 8px; border-radius: 999px;
+      background: rgba(255,255,255,0.07); overflow: hidden;
+    }
+    .bulk-progress-bar {
+      height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, #0ea5e9, #6366f1, #8b5cf6);
+      width: 0%; transition: width 0.4s ease;
+      box-shadow: 0 0 12px rgba(99,102,241,0.55);
+    }
+    .bulk-progress-text {
+      font-size: 12px; margin-top: 8px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .progress-label-main { color: #94a3b8; }
+    .progress-label-product {
+      font-size: 11px; color: #6366f1; font-style: italic;
+      max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .progress-count { color: #64748b; font-weight: 600; font-size: 11px; }
+
+    /* ── Log entry — generated output cols ── */
+    .log-generated {
+      margin-top: 4px; padding: 6px 10px;
+      background: rgba(16,185,129,0.06); border-left: 2px solid rgba(16,185,129,0.35);
+      border-radius: 0 6px 6px 0; font-size: 11.5px;
+    }
+    .log-gen-key { color: #34d399; }
+    .log-gen-val { color: #a7f3d0; }
+
+    /* ── Download Results button ── */
+    #downloadResultsWrap { display: none; margin-top: 24px; }
+    #downloadResultsWrap.show { display: block; }
+    .btn-download-results {
+      width: 100%; padding: 18px 24px; border-radius: 16px; border: none; cursor: pointer;
+      font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 800; color: #fff;
+      background: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%);
+      box-shadow: 0 6px 30px rgba(16,185,129,0.55);
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      position: relative; overflow: hidden;
+      transition: transform 0.25s, box-shadow 0.25s;
+      letter-spacing: 0.01em;
+    }
+    .btn-download-results::before {
+      content: ''; position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.55s ease;
+    }
+    .btn-download-results:hover::before { left: 100%; }
+    .btn-download-results:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(16,185,129,0.75);
+    }
+    .btn-download-results:active { transform: translateY(0); }
+    .result-ready-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 999px;
+      background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.35);
+      font-size: 11px; font-weight: 700; color: #6ee7b7;
+      margin-bottom: 12px;
+    }
+    .result-summary {
+      font-size: 12px; color: #475569; margin-top: 10px; text-align: center;
+    }
+
+    /* ── Console log viewer ── */
+    #bulkLogSection { display: none; margin-top: 20px; }
+    #bulkLogSection.show { display: block; }
+    .log-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .log-title {
+      font-size: 12px; font-weight: 700; color: #34d399; letter-spacing: 0.05em;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .log-dot { width: 6px; height: 6px; border-radius: 50%; background: #34d399; animation: pulseDot 1.5s ease-in-out infinite; }
+
+    /* ── Download Template button ── */
+    .btn-template {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 14px; border-radius: 9px; cursor: pointer;
+      font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+      color: #64748b; background: transparent;
+      border: 1px solid rgba(255,255,255,0.10);
+      transition: all 0.2s ease; white-space: nowrap;
+      text-decoration: none;
+    }
+    .btn-template:hover {
+      color: #a5b4fc; border-color: rgba(99,102,241,0.4);
+      background: rgba(99,102,241,0.08);
+      box-shadow: 0 0 12px rgba(99,102,241,0.12);
+    }
+    .btn-template:active { transform: scale(0.97); }
+    .btn-template.downloaded {
+      color: #34d399; border-color: rgba(16,185,129,0.35);
+      background: rgba(16,185,129,0.07);
+    }
+    .btn-clear-log {
+      font-size: 11px; color: #475569; background: none; border: 1px solid rgba(255,255,255,0.08);
+      padding: 3px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-clear-log:hover { color: #94a3b8; border-color: rgba(255,255,255,0.15); }
+    .log-box {
+      background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 16px; max-height: 280px; overflow-y: auto;
+      font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.75;
+    }
+    .log-entry { display: flex; gap: 10px; padding: 2px 0; }
+    .log-entry:not(:last-child) { border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .log-idx { color: #4f46e5; font-weight: 700; min-width: 28px; }
+    .log-key { color: #38bdf8; }
+    .log-val { color: #a5f3fc; }
+    .log-sep { color: #475569; }
+
+    /* ── Divider glow ── */
+    .divider-glow {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(99,102,241,0.5), rgba(124,58,237,0.5), transparent);
+      margin: 28px 0; opacity: 0.7;
+    }
+
+    /* ── Form label ── */
+    .form-label {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 13px; font-weight: 600; color: #cbd5e1; margin-bottom: 8px;
+    }
+    .form-label .req { color: #f87171; font-size: 11px; }
+
+    /* ── Input fields ── */
+    .input-field {
+      width: 100%; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.10); border-radius: 12px;
+      color: #e2e8f0; font-size: 14px; font-family: 'Inter', sans-serif;
+      padding: 12px 16px; outline: none;
+      transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
+    }
+    .input-field.has-icon { padding-left: 40px; }
+    .input-field::placeholder { color: rgba(100,116,139,0.7); }
+    .input-field:focus {
+      background: rgba(99,102,241,0.07);
+      border-color: rgba(99,102,241,0.6);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15), 0 0 20px rgba(99,102,241,0.08);
+    }
+    .input-field.error { border-color: rgba(248,113,113,0.6); }
+    .input-wrap { position: relative; }
+    .input-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: #64748b; pointer-events: none;
+    }
+
+    /* ── Error message ── */
+    .err-msg { font-size: 12px; color: #f87171; margin-top: 4px; display: none; }
+    .err-msg.show { display: block; }
+
+    /* ── Char counter ── */
+    .char-counter { font-size: 11px; font-weight: 400; color: #475569; }
+    .char-counter.ok   { color: #34d399; }
+    .char-counter.warn { color: #fbbf24; }
+    .char-counter.bad  { color: #f87171; }
+
+    /* ── Generate (single) button ── */
+    .btn-generate {
+      width: 100%; padding: 15px 24px; border-radius: 14px; border: none; cursor: pointer;
+      font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 700; color: #fff;
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #7c3aed 100%);
+      box-shadow: 0 4px 24px rgba(99,102,241,0.55);
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      position: relative; overflow: hidden;
+      transition: transform 0.25s, box-shadow 0.25s; margin-top: 8px;
+    }
+    .btn-generate::before {
+      content: ''; position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+      transition: left 0.5s ease;
+    }
+    .btn-generate:hover::before { left: 100%; }
+    .btn-generate:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99,102,241,0.75); }
+    .btn-generate:active { transform: translateY(0); }
+    .btn-generate:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: 0 2px 10px rgba(99,102,241,0.25); }
+
+    /* ── Dot bounce ── */
+    .dot-bounce {
+      display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+      background: #fff; animation: dotBounce 1.4s ease-in-out infinite; margin: 0 2px;
+    }
+    .dot-bounce:nth-child(1) { animation-delay: 0s; }
+    .dot-bounce:nth-child(2) { animation-delay: 0.2s; }
+    .dot-bounce:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dotBounce { 0%,80%,100% { transform:scale(0.6); opacity:0.4; } 40% { transform:scale(1.3); opacity:1; } }
+
+    /* ── Result boxes ── */
+    .result-box {
+      background: linear-gradient(135deg, rgba(99,102,241,0.07) 0%, rgba(16,185,129,0.03) 100%);
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 18px;
+      padding: 24px; margin-bottom: 20px;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .result-box:hover { border-color: rgba(99,102,241,0.3); box-shadow: 0 0 24px rgba(99,102,241,0.1); }
+    .result-box-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px; flex-wrap: wrap; gap: 8px;
+    }
+    .result-label { display: flex; align-items: center; gap: 8px; }
+    .label-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .label-dot.indigo  { background: #818cf8; }
+    .label-dot.purple  { background: #c084fc; }
+    .label-dot.emerald { background: #34d399; }
+    .label-text { font-size: 13px; font-weight: 700; letter-spacing: 0.03em; }
+    .label-text.indigo  { color: #a5b4fc; }
+    .label-text.purple  { color: #d8b4fe; }
+    .label-text.emerald { color: #6ee7b7; }
+    .label-tag {
+      font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 600;
+    }
+    .label-tag.indigo  { background: rgba(99,102,241,0.15); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); }
+    .label-tag.purple  { background: rgba(168,85,247,0.12); color: #d8b4fe; border: 1px solid rgba(168,85,247,0.3); }
+    .label-tag.emerald { background: rgba(16,185,129,0.12); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+    .result-meta { display: flex; align-items: center; gap: 10px; }
+    .result-textarea {
+      width: 100%; background: transparent; border: none; outline: none;
+      color: #e2e8f0; font-family: 'Inter', sans-serif; font-size: 13.5px;
+      line-height: 1.7; resize: none; padding: 0;
+    }
+    .result-textarea::placeholder { color: rgba(100,116,139,0.6); }
+    .result-textarea::selection { background: rgba(99,102,241,0.3); }
+    .result-hint { font-size: 11.5px; color: #475569; margin-top: 12px; }
+
+    /* ── License Bar ── */
+    .license-bar {
+      max-width: 900px; margin: 0 auto 20px; padding: 0 16px;
+    }
+    .license-card {
+      background: rgba(15,23,42,0.85);
+      border: 1px solid rgba(99,102,241,0.25);
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex; align-items: center; gap: 12px;
+      flex-wrap: wrap;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.35), 0 0 0 1px rgba(99,102,241,0.06) inset;
+    }
+    .license-icon {
+      width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(124,58,237,0.22));
+      border: 1px solid rgba(99,102,241,0.35);
+      display: flex; align-items: center; justify-content: center; color: #a5b4fc;
+    }
+    .license-label {
+      font-size: 12px; font-weight: 700; color: #a5b4fc; letter-spacing: 0.04em;
+    }
+    .license-sublabel { font-size: 10.5px; color: #475569; margin-top: 1px; }
+    .license-input-wrap { flex: 1; position: relative; min-width: 200px; }
+    .license-input {
+      width: 100%; background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.09); border-radius: 9px;
+      color: #e2e8f0; font-family: 'Courier New', monospace;
+      font-size: 13.5px; padding: 9px 14px;
+      outline: none; letter-spacing: 0.12em; text-transform: uppercase;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .license-input::placeholder { color: rgba(100,116,139,0.45); font-family:'Inter',sans-serif; letter-spacing:0; text-transform:none; }
+    .license-input:focus { border-color: rgba(99,102,241,0.5); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+    .license-input.valid   { border-color: rgba(16,185,129,0.5); }
+    .license-input.invalid { border-color: rgba(248,113,113,0.5); }
+    .btn-validate {
+      flex-shrink: 0; display: flex; align-items: center; gap: 7px;
+      padding: 9px 18px; border-radius: 9px;
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      border: none; color: #fff; font-family: 'Inter', sans-serif;
+      font-size: 12.5px; font-weight: 700; cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-validate:hover  { opacity: 0.85; }
+    .btn-validate:active { transform: scale(0.97); }
+    .btn-validate:disabled { opacity: 0.4; cursor: not-allowed; }
+    .quota-badge {
+      display: none; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 20px;
+      background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3);
+      font-size: 11.5px; font-weight: 700; color: #34d399; white-space: nowrap;
+    }
+    .quota-badge.show { display: flex; }
+    .quota-badge.low  { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); color: #fbbf24; }
+    .quota-badge.empty{ background: rgba(239,68,68,0.1);  border-color: rgba(239,68,68,0.3);  color: #f87171; }
+    .license-err-toast {
+      display: none; align-items: center; gap: 8px;
+      padding: 9px 14px; border-radius: 10px; margin-top: 8px;
+      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+      font-size: 12px; color: #fca5a5;
+    }
+    .license-err-toast.show { display: flex; }
+
+    /* ── Copy button ── */
+    .btn-copy {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.05);
+      color: #94a3b8; font-family: 'Inter', sans-serif;
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s ease; white-space: nowrap;
+    }
+    .btn-copy:hover { background: rgba(99,102,241,0.2); border-color: rgba(99,102,241,0.4); color: #a5b4fc; }
+    .btn-copy.copied { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); color: #34d399; }
+
+    /* ── Action buttons (results) ── */
+    .btn-action {
+      flex: 1; padding: 13px 20px; border-radius: 14px;
+      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.25s ease;
+    }
+    .btn-action.indigo {
+      background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.35); color: #a5b4fc;
+    }
+    .btn-action.indigo:hover { background: rgba(99,102,241,0.22); border-color: rgba(99,102,241,0.55); transform: translateY(-1px); }
+    .btn-action.slate {
+      background: rgba(51,65,85,0.2); border: 1px solid rgba(71,85,105,0.4); color: #94a3b8;
+    }
+    .btn-action.slate:hover { background: rgba(51,65,85,0.35); color: #cbd5e1; transform: translateY(-1px); }
+
+    /* ── Footer ── */
+    footer { text-align: center; padding: 20px 16px; font-size: 12px; color: #334155; border-top: 1px solid rgba(255,255,255,0.05); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.4); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.6); }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .glass-card { padding: 18px 14px; }
+      .result-box  { padding: 16px 14px; }
+      .action-row  { flex-direction: column; }
+      .btn-action  { flex: none; width: 100%; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Orbs -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="page-wrapper">
+
+    <!-- ══════════════ HEADER ══════════════ -->
+    <header style="padding: 48px 16px 28px; text-align: center;">
+      <div class="ai-badge">
+        <span class="badge-dot"></span>
+        AI-Powered SEO Tool
+      </div>
+      <h1 class="heading-gradient" style="font-size: clamp(2rem, 5vw, 3.4rem);">
+        SEO &amp; Product
+        <span class="heading-sub">Description Generator</span>
+      </h1>
+      <p style="max-width: 580px; margin: 0 auto; font-size: 15.5px; line-height: 1.7; color: #94a3b8;">
+        Buat <span style="color:#a5b4fc;font-weight:600;">Meta Title</span>,
+        <span style="color:#d8b4fe;font-weight:600;">Meta Description</span>, dan
+        <span style="color:#6ee7b7;font-weight:600;">Deskripsi Produk</span> SEO-friendly —
+        satu per satu atau sekaligus via <span style="color:#38bdf8;font-weight:600;">Bulk CSV</span>.
+      </p>
+    </header>
+
+    <!-- ══════════════ MAIN ══════════════ -->
+    <main style="flex:1; max-width:900px; margin:0 auto; width:100%; padding:0 16px 72px;">
+
+      <!-- ── LICENSE CODE BAR ── -->
+      <div class="license-bar">
+        <div class="license-card">
+          <!-- Icon -->
+          <div class="license-icon">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <!-- Label -->
+          <div style="flex-shrink:0;">
+            <div class="license-label">Kode Lisensi</div>
+            <div class="license-sublabel">Validasi sebelum mulai generate</div>
+          </div>
+          <!-- Input -->
+          <div class="license-input-wrap">
+            <input
+              type="text"
+              id="licenseInput"
+              class="license-input"
+              placeholder="Contoh: SEO-ABCD-1234-EFGH"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="19"
+              oninput="onLicenseInput()"
+              onkeydown="if(event.key==='Enter') validateLicense()"
+            />
+          </div>
+          <!-- Validate button -->
+          <button class="btn-validate" id="btnValidate" onclick="validateLicense()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Validasi
+          </button>
+          <!-- Quota badge (muncul setelah validasi) -->
+          <div class="quota-badge" id="quotaBadge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span id="quotaText">500 generate tersisa</span>
+          </div>
+        </div>
+        <!-- Error toast -->
+        <div class="license-err-toast" id="licenseErrToast">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+          <span id="licenseErrMsg"></span>
+        </div>
+      </div>
+
+      <!-- ── TAB SWITCHER ── -->
+      <div class="tab-bar">
+        <button class="tab-btn" id="tabBulk" onclick="switchTab('bulk')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/>
+            <line x1="10" x2="8" y1="9" y2="9"/>
+          </svg>
+          Bulk Processing (CSV)
+        </button>
+        <button class="tab-btn" id="tabSingle" onclick="switchTab('single')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+          </svg>
+          Input Manual
+        </button>
+      </div>
+
+      <!-- ════════════════════════════════════════
+           TAB 1 — BULK PROCESSING
+      ════════════════════════════════════════ -->
+      <div class="tab-panel" id="panelBulk">
+
+        <div class="glass-card">
+
+          <!-- Card header -->
+          <div style="display:flex; align-items:center; gap:14px; margin-bottom:24px;">
+            <div class="section-icon teal">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" x2="12" y1="3" y2="15"/>
+              </svg>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:17px; font-weight:700; color:#f1f5f9;">Bulk Processing via CSV</div>
+              <div style="font-size:12px; color:#64748b; margin-top:2px;">Upload file CSV untuk memproses banyak produk sekaligus</div>
+            </div>
+            <!-- Download Template Button -->
+            <button class="btn-template" id="btnDownloadTemplate" onclick="downloadTemplate()" title="Download template CSV kosong">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" x2="12" y1="3" y2="15"/>
+              </svg>
+              Template CSV
+            </button>
+          </div>
+
+          <!-- ── Drag & Drop Zone ── -->
+          <div class="drop-zone" id="dropZone"
+               onclick="document.getElementById('csvFileInput').click()"
+               ondragover="handleDragOver(event)"
+               ondragleave="handleDragLeave(event)"
+               ondrop="handleDrop(event)">
+
+            <input type="file" id="csvFileInput" accept=".csv,text/csv" onchange="handleFileSelect(event)" />
+
+            <div class="drop-icon">
+              <svg id="dropIconSvg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" x2="8" y1="13" y2="13"/>
+                <line x1="16" x2="8" y1="17" y2="17"/>
+              </svg>
+            </div>
+
+            <div style="font-size:15px; font-weight:700; color:#e2e8f0; margin-bottom:6px;" id="dropZoneTitle">
+              Drag &amp; drop file CSV ke sini
+            </div>
+            <div style="font-size:13px; color:#64748b; margin-bottom:4px;">atau</div>
+
+            <label class="btn-upload" for="csvFileInput" onclick="event.stopPropagation()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" x2="12" y1="3" y2="15"/>
+              </svg>
+              Upload File CSV
+            </label>
+
+            <div style="font-size:11.5px; color:#334155; margin-top:12px;">
+              Mendukung <strong style="color:#475569;">.csv</strong> &bull; Diproses 100% di browser, data tidak dikirim ke server
+            </div>
+          </div>
+
+          <!-- File status -->
+          <div class="file-status" id="fileStatus">
+            <span class="file-status-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </span>
+            <span class="file-status-name" id="fileStatusName"></span>
+            <span class="file-status-meta" id="fileStatusMeta"></span>
+            <button class="btn-clear-file" onclick="clearFile()" title="Hapus file">×</button>
+          </div>
+
+          <!-- CSV Format hint -->
+          <div class="csv-hint-box">
+            <span class="csv-hint-icon">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+              </svg>
+            </span>
+            <div>
+              <div class="csv-hint-title">Format Kolom CSV yang Diperlukan</div>
+              <div style="font-size:12px; color:#64748b; line-height:1.6;">
+                Pastikan baris pertama file CSV Anda adalah <strong style="color:#7dd3fc;">header</strong> dengan nama kolom berikut:
+              </div>
+              <div class="csv-hint-cols">
+                <span class="col-tag required">Nama_Produk</span>
+                <span class="col-tag required">Target_Keyword <span style="font-weight:400;opacity:0.6;">(boleh kosong)</span></span>
+                <span class="col-tag optional">Harga (opsional)</span>
+              </div>
+              <div style="font-size:11px; color:#475569; margin-top:10px;">
+                📎 <strong style="color:#334155;">Contoh baris:</strong>
+                <span style="font-family:monospace; color:#4b5563; background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; margin-left:4px;">
+                  "Adidas Adizero Evo SL";"sepatu lari adizero";2000000
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CSV Preview -->
+          <div id="previewSection">
+            <div class="preview-label">
+              Preview Data
+              <span class="preview-badge" id="previewBadge">0 baris</span>
+            </div>
+            <div class="table-wrap">
+              <table class="preview-table" id="previewTable">
+                <thead id="previewThead"></thead>
+                <tbody id="previewTbody"></tbody>
+              </table>
+            </div>
+            <div class="preview-footer" id="previewFooter"></div>
+          </div>
+
+          <!-- Generate Bulk button -->
+          <button class="btn-bulk" id="bulkBtn" onclick="generateBulk()" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+            <span id="bulkBtnText">Generate Bulk Data</span>
+          </button>
+
+          <!-- Progress bar -->
+          <div class="bulk-progress-wrap" id="bulkProgress">
+            <div class="bulk-progress-bar-bg">
+              <div class="bulk-progress-bar" id="bulkProgressBar"></div>
+            </div>
+            <div class="bulk-progress-text">
+              <span id="bulkProgressLabel">Memproses...</span>
+              <span id="bulkProgressCount">0 / 0</span>
+            </div>
+          </div>
+
+          <!-- Log viewer -->
+          <div id="bulkLogSection">
+            <div class="log-header">
+              <div class="log-title">
+                <span class="log-dot"></span>
+                Console Output
+              </div>
+              <button class="btn-clear-log" onclick="clearLog()">Bersihkan</button>
+            </div>
+            <div class="log-box" id="logBox"></div>
+          </div>
+
+          <!-- Download Results (muncul setelah generate selesai) -->
+          <div id="downloadResultsWrap">
+            <div style="text-align:center; margin-bottom:4px;">
+              <span class="result-ready-badge">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Generate Selesai!
+              </span>
+            </div>
+            <button class="btn-download-results" id="btnDownloadResults" onclick="downloadResults()">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" x2="12" y1="3" y2="15"/>
+              </svg>
+              Download Hasil Generate (CSV)
+            </button>
+            <div class="result-summary" id="resultSummary"></div>
+          </div>
+
+        </div><!-- /glass-card bulk -->
+
+      </div><!-- /panelBulk -->
+
+
+      <!-- ════════════════════════════════════════
+           TAB 2 — INPUT MANUAL
+      ════════════════════════════════════════ -->
+      <div class="tab-panel" id="panelSingle">
+
+        <div class="glass-card">
+          <!-- Card header -->
+          <div style="display:flex; align-items:center; gap:14px; margin-bottom:28px;">
+            <div class="section-icon purple">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </div>
+            <div>
+              <div style="font-size:17px; font-weight:700; color:#f1f5f9;">Detail Produk</div>
+              <div style="font-size:12px; color:#64748b; margin-top:2px;">Isi semua field untuk hasil generate terbaik</div>
+            </div>
+          </div>
+
+          <form id="seoForm" novalidate>
+
+            <!-- Nama Produk -->
+            <div style="margin-bottom:22px;">
+              <label class="form-label" for="productName">
+                <span>Nama Produk <span class="req">*</span></span>
+              </label>
+              <input type="text" id="productName" class="input-field"
+                placeholder="e.g. Sepatu Lari Nike Air Zoom Pegasus 40"
+                maxlength="100" autocomplete="off" />
+              <div class="err-msg" id="productName-error">⚠ Nama produk wajib diisi.</div>
+            </div>
+
+            <!-- Keyword Utama -->
+            <div style="margin-bottom:22px;">
+              <label class="form-label" for="mainKeyword">
+                <span>Target Keyword Utama <span class="req">*</span></span>
+              </label>
+              <div class="input-wrap">
+                <span class="input-icon">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                  </svg>
+                </span>
+                <input type="text" id="mainKeyword" class="input-field has-icon"
+                  placeholder="e.g. sepatu lari terbaik 2025" maxlength="80" autocomplete="off" />
+              </div>
+              <div class="err-msg" id="mainKeyword-error">⚠ Keyword utama wajib diisi.</div>
+            </div>
+
+            <!-- Poin Fitur -->
+            <div style="margin-bottom:24px;">
+              <label class="form-label" for="featurePoints">
+                <span>Poin Fitur Barang <span class="req">*</span></span>
+                <span class="char-counter" id="featureCounter">0 / 1000 karakter</span>
+              </label>
+              <textarea id="featurePoints" class="input-field" rows="6" maxlength="1000"
+                style="resize:none; line-height:1.65;"
+                placeholder="Tuliskan fitur-fitur unggulan produk, satu per baris. Contoh:&#10;- Sol karet anti-slip tahan lama&#10;- Bantalan ZoomX untuk kenyamanan maksimal&#10;- Upper mesh breathable &amp; ringan&#10;- Tersedia dalam 8 pilihan warna&#10;- Cocok untuk lari jarak jauh &amp; maraton"
+              ></textarea>
+              <div class="err-msg" id="featurePoints-error">⚠ Poin fitur wajib diisi.</div>
+            </div>
+
+            <!-- Generate button -->
+            <button type="submit" id="generateBtn" class="btn-generate">
+              <span id="btnIcon">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+                  <path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/>
+                </svg>
+              </span>
+              <span id="btnText">Generate SEO &amp; Deskripsi</span>
+            </button>
+          </form>
+        </div><!-- /glass-card single -->
+
+        <!-- DIVIDER -->
+        <div class="divider-glow"></div>
+
+        <!-- RESULTS SECTION -->
+        <section id="resultsSection" style="transition: opacity 0.45s ease, transform 0.45s ease; opacity:0; transform:translateY(12px); pointer-events:none;">
+
+          <div style="display:flex; align-items:center; gap:14px; margin-bottom:24px;">
+            <div class="section-icon green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+            </div>
+            <div>
+              <div style="font-size:17px; font-weight:700; color:#f1f5f9;">Hasil Generate</div>
+              <div style="font-size:12px; color:#64748b; margin-top:2px;">Klik tombol Salin untuk menyalin setiap bagian</div>
+            </div>
+          </div>
+
+          <!-- Meta Title -->
+          <div class="result-box">
+            <div class="result-box-header">
+              <div class="result-label">
+                <span class="label-dot indigo"></span>
+                <span class="label-text indigo">Meta Title</span>
+                <span class="label-tag indigo">&lt;title&gt; tag</span>
+              </div>
+              <div class="result-meta">
+                <span class="char-counter" id="metaTitleCount">0 / 60 karakter</span>
+                <button class="btn-copy" id="copyMetaTitle" onclick="copyText('metaTitleOutput', this)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  Salin
+                </button>
+              </div>
+            </div>
+            <textarea id="metaTitleOutput" class="result-textarea" rows="2" readonly placeholder="Meta title akan muncul di sini..."></textarea>
+            <div class="result-hint">💡 Idealnya <strong style="color:#64748b;">50–60 karakter</strong> agar tampil penuh di Google.</div>
+          </div>
+
+          <!-- Meta Description -->
+          <div class="result-box">
+            <div class="result-box-header">
+              <div class="result-label">
+                <span class="label-dot purple"></span>
+                <span class="label-text purple">Meta Description</span>
+                <span class="label-tag purple">&lt;meta&gt; tag</span>
+              </div>
+              <div class="result-meta">
+                <span class="char-counter" id="metaDescCount">0 / 160 karakter</span>
+                <button class="btn-copy" id="copyMetaDesc" onclick="copyText('metaDescOutput', this)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  Salin
+                </button>
+              </div>
+            </div>
+            <textarea id="metaDescOutput" class="result-textarea" rows="3" readonly placeholder="Meta description akan muncul di sini..."></textarea>
+            <div class="result-hint">💡 Idealnya <strong style="color:#64748b;">150–160 karakter</strong> agar tidak terpotong di SERP.</div>
+          </div>
+
+          <!-- Product Description -->
+          <div class="result-box">
+            <div class="result-box-header">
+              <div class="result-label">
+                <span class="label-dot emerald"></span>
+                <span class="label-text emerald">Deskripsi Produk</span>
+                <span class="label-tag emerald">Lengkap &amp; SEO-Friendly</span>
+              </div>
+              <div class="result-meta">
+                <span class="char-counter" id="prodDescCount">0 kata</span>
+                <button class="btn-copy" id="copyProdDesc" onclick="copyText('prodDescOutput', this)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                  Salin
+                </button>
+              </div>
+            </div>
+            <textarea id="prodDescOutput" class="result-textarea" rows="10" readonly placeholder="Deskripsi produk lengkap akan muncul di sini..."></textarea>
+            <div class="result-hint">💡 Gunakan deskripsi ini di halaman produk e-commerce atau website Anda.</div>
+          </div>
+
+          <!-- Action row -->
+          <div class="action-row" style="display:flex; gap:12px; padding-top:8px;">
+            <button class="btn-action indigo" id="copyAllBtn" onclick="copyAll()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+              Salin Semua
+            </button>
+            <button class="btn-action slate" id="resetBtn" onclick="resetAll()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              Generate Ulang / Reset
+            </button>
+          </div>
+
+        </section><!-- /resultsSection -->
+
+      </div><!-- /panelSingle -->
+
+    </main>
+
+    <!-- ══════════════ FOOTER ══════════════ -->
+    <footer>
+      SEO &amp; Product Description Generator &bull; Bulk CSV + Manual Mode &bull;
+      <span style="color:#6366f1;">v2.0</span>
+    </footer>
+
+  </div><!-- /page-wrapper -->
+
+
+  <!-- ══════════════ JAVASCRIPT ══════════════ -->
+  <script>
+    /* ═══════════════════════════════════════════
+       HELPERS
+    ═══════════════════════════════════════════ */
+    const $ = (id) => document.getElementById(id);
+    let csvData = [];      // parsed CSV rows
+    let csvHeaders = [];   // parsed CSV headers
+
+    /* ═══════════════════════════════════════════
+       TAB SWITCHING
+    ═══════════════════════════════════════════ */
+    function switchTab(tab) {
+      const panels = { bulk: $('panelBulk'), single: $('panelSingle') };
+      const btns   = { bulk: $('tabBulk'),   single: $('tabSingle')   };
+      Object.keys(panels).forEach(k => {
+        panels[k].classList.toggle('active', k === tab);
+        btns[k].classList.toggle('active', k === tab);
+      });
+    }
+    // Default: show Bulk tab
+    switchTab('bulk');
+
+    /* ═══════════════════════════════════════════
+       ── DOWNLOAD TEMPLATE CSV ──
+    ═══════════════════════════════════════════ */
+    function downloadTemplate() {
+      // Header row (tanpa underscore) + 1 contoh baris data
+      // Delimiter: titik koma (;) — aman untuk teks yang mengandung koma
+      // Semua cell teks selalu dibungkus double-quote ("")
+
+      const DELIM = ';';
+
+      // Fungsi wrap: selalu bungkus dengan double-quote, escape inner quote → double-double-quote
+      function quoteCell(val) {
+        return '"' + String(val).replace(/"/g, '""') + '"';
+      }
+
+      const rows = [
+        // Baris 1: header — 3 kolom saja
+        ['Nama_Produk', 'Target_Keyword', 'Harga'],
+
+        // Baris 2: contoh data dengan keyword
+        [
+          'Adidas Adizero Evo SL Black White',
+          'sepatu lari adizero terbaik',
+          '2000000'
+        ],
+
+        // Baris 3: contoh dengan keyword dikosongkan (diperbolehkan)
+        [
+          'Nike Air Zoom Pegasus 41',
+          '',
+          '1850000'
+        ]
+      ];
+
+      // Bangun string CSV: header tidak di-quote, data teks selalu di-quote
+      const csvContent = rows
+        .map((row, rowIdx) =>
+          row.map((cell, colIdx) => {
+            // Header row (rowIdx 0): tidak perlu di-quote
+            if (rowIdx === 0) return cell;
+            // Kolom Harga (index 2): nilai numerik — tidak di-quote
+            if (colIdx === 2) return cell;
+            // Semua kolom teks: selalu wrap double-quote
+            return quoteCell(cell);
+          }).join(DELIM)
+        )
+        .join('\r\n');
+
+      // Buat Blob dengan BOM UTF-8 agar Excel membaca karakter Indonesia dengan benar
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+
+      // Trigger download via temporary <a>
+      const a = document.createElement('a');
+      a.href     = url;
+      a.download = 'template_seo_generator.csv';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+
+      // Cleanup
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 1000);
+
+      // Visual feedback on button
+      const btn = $('btnDownloadTemplate');
+      const originalHTML = btn.innerHTML;
+      btn.classList.add('downloaded');
+      btn.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Terunduh!`;
+      setTimeout(() => {
+        btn.classList.remove('downloaded');
+        btn.innerHTML = originalHTML;
+      }, 2500);
+    }
+
+    /* ═══════════════════════════════════════════
+       ── BULK PROCESSING ──
+    ═══════════════════════════════════════════ */
+
+    /* Drag & drop handlers */
+    function handleDragOver(e) {
+      e.preventDefault(); e.stopPropagation();
+      $('dropZone').classList.add('drag-over');
+    }
+    function handleDragLeave(e) {
+      e.preventDefault(); e.stopPropagation();
+      $('dropZone').classList.remove('drag-over');
+    }
+    function handleDrop(e) {
+      e.preventDefault(); e.stopPropagation();
+      $('dropZone').classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) processCSVFile(file);
+    }
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) processCSVFile(file);
+    }
+
+    /* Parse CSV with PapaParse */
+    function processCSVFile(file) {
+      if (!file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv') {
+        alert('⚠ Harap upload file berformat .csv');
+        return;
+      }
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          if (results.errors.length > 0) {
+            console.warn('PapaParse warnings:', results.errors);
+          }
+          csvData    = results.data;
+          csvHeaders = results.meta.fields || [];
+          onCSVLoaded(file, csvData, csvHeaders);
+        },
+        error: function(err) {
+          alert('Gagal membaca file CSV: ' + err.message);
+        }
+      });
+    }
+
+    /* After CSV loaded */
+    function onCSVLoaded(file, data, headers) {
+      // Update drop zone style
+      const dz = $('dropZone');
+      dz.classList.add('has-file');
+      $('dropZoneTitle').textContent = 'File berhasil dimuat ✓';
+
+      // Show file status bar
+      const kb = (file.size / 1024).toFixed(1);
+      $('fileStatusName').textContent = file.name;
+      $('fileStatusMeta').textContent = `${data.length} baris  •  ${kb} KB`;
+      $('fileStatus').classList.add('show');
+
+      // Build preview table (max 5 rows)
+      buildPreviewTable(data, headers);
+
+      // Enable bulk button
+      $('bulkBtn').disabled = false;
+
+      // Hide previous log
+      $('bulkLogSection').classList.remove('show');
+      $('logBox').innerHTML = '';
+    }
+
+    /* Build preview table */
+    function buildPreviewTable(data, headers) {
+      const previewRows = data.slice(0, 5);
+      const totalRows   = data.length;
+
+      // Header
+      const thead = $('previewThead');
+      thead.innerHTML = '';
+      const trHead = document.createElement('tr');
+      // Row number column
+      const thNum = document.createElement('th');
+      thNum.textContent = '#';
+      thNum.style.cssText = 'width:40px; text-align:center;';
+      trHead.appendChild(thNum);
+      headers.forEach(h => {
+        const th = document.createElement('th');
+        th.textContent = h;
+        trHead.appendChild(th);
+      });
+      thead.appendChild(trHead);
+
+      // Body
+      const tbody = $('previewTbody');
+      tbody.innerHTML = '';
+      previewRows.forEach((row, i) => {
+        const tr = document.createElement('tr');
+        // Row number cell
+        const tdNum = document.createElement('td');
+        tdNum.style.textAlign = 'center';
+        tdNum.innerHTML = `<span class="row-num">${i + 1}</span>`;
+        tr.appendChild(tdNum);
+        headers.forEach(h => {
+          const td = document.createElement('td');
+          td.textContent = row[h] || '—';
+          td.title = row[h] || '';      // tooltip for truncated text
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      // Badge & footer
+      $('previewBadge').textContent = `${totalRows} baris total`;
+      $('previewFooter').textContent = totalRows > 5
+        ? `Menampilkan 5 dari ${totalRows} baris. Semua data akan diproses saat Generate Bulk.`
+        : `Menampilkan semua ${totalRows} baris.`;
+
+      // Show preview section
+      const ps = $('previewSection');
+      ps.classList.add('show');
+    }
+
+    /* Clear uploaded file */
+    function clearFile() {
+      csvData = []; csvHeaders = []; generatedResults = [];
+      $('csvFileInput').value = '';
+      $('dropZone').classList.remove('has-file');
+      $('dropZoneTitle').textContent = 'Drag & drop file CSV ke sini';
+      $('fileStatus').classList.remove('show');
+      $('previewSection').classList.remove('show');
+      $('previewThead').innerHTML = '';
+      $('previewTbody').innerHTML = '';
+      $('bulkBtn').disabled = true;
+      $('bulkBtnText').textContent = 'Generate Bulk Data';
+      $('bulkLogSection').classList.remove('show');
+      $('bulkProgress').classList.remove('show');
+      $('bulkProgressBar').style.width = '0%';
+      $('bulkProgressLabel').textContent = 'Memproses...';
+      $('logBox').innerHTML = '';
+      $('downloadResultsWrap').classList.remove('show');
+      $('resultSummary').textContent = '';
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       LICENSE HELPERS
+    ═══════════════════════════════════════════════════════ */
+    let licenseValidated  = false;
+    let licenseCode       = '';
+    let licenseRemaining  = 0;
+
+    function getLicenseCode() {
+      return $('licenseInput').value.trim().toUpperCase();
+    }
+
+    /* Live formatting: otomatis tambah dash setiap 4 karakter */
+    function onLicenseInput() {
+      const inp = $('licenseInput');
+      // Ambil hanya alfanumerik
+      let raw = inp.value.replace(/[^A-Z0-9a-z]/gi, '').toUpperCase();
+      // Format: SEO-XXXX-XXXX-XXXX (prefix 3, lalu 3 blok 4)
+      let formatted = '';
+      if (raw.length <= 3) {
+        formatted = raw;
+      } else {
+        formatted = raw.slice(0, 3);
+        for (let i = 3; i < Math.min(raw.length, 15); i += 4) {
+          formatted += '-' + raw.slice(i, i + 4);
+        }
+      }
+      inp.value = formatted;
+
+      // Reset validasi jika kode diubah
+      licenseValidated = false;
+      inp.className = 'license-input';
+      $('quotaBadge').classList.remove('show');
+      $('licenseErrToast').classList.remove('show');
+    }
+
+    function showLicenseError(msg) {
+      $('licenseErrMsg').textContent = msg;
+      $('licenseErrToast').classList.add('show');
+    }
+
+    function updateQuotaBadge(remaining) {
+      licenseRemaining = remaining;
+      const badge = $('quotaBadge');
+      badge.classList.add('show');
+      badge.classList.remove('low', 'empty');
+      $('quotaText').textContent = `${remaining} generate tersisa`;
+      if (remaining === 0)        badge.classList.add('empty');
+      else if (remaining <= 10)   badge.classList.add('low');
+      else if (remaining <= 50)   badge.classList.add('low');
+    }
+
+    async function validateLicense() {
+      const code = getLicenseCode();
+      const inp  = $('licenseInput');
+      const btn  = $('btnValidate');
+
+      $('licenseErrToast').classList.remove('show');
+
+      if (!code) {
+        showLicenseError('Masukkan kode lisensi terlebih dahulu.');
+        inp.focus(); return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Mengecek...';
+
+      try {
+        const res  = await fetch('http://localhost:3001/api/validate-license', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ licenseCode: code }),
+        });
+        const data = await res.json();
+
+        if (data.valid) {
+          licenseValidated = true;
+          licenseCode      = code;
+          inp.className = 'license-input valid';
+          updateQuotaBadge(data.remaining);
+          console.log(`[License] ✓ ${code} | sisa: ${data.remaining}`);
+        } else {
+          licenseValidated = false;
+          inp.className = 'license-input invalid';
+          showLicenseError(data.error || 'Kode lisensi tidak valid.');
+        }
+      } catch {
+        showLicenseError('❌ Tidak bisa terhubung ke server. Pastikan server berjalan di port 3001.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Validasi`;
+      }
+    }
+
+    function showApiError(msg) {
+      showLicenseError(msg);
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       PROMPT BUILDER — Sneaker Copywriter Mode
+       Hanya butuh Nama_Produk + Target_Keyword (opsional)
+       AI mengidentifikasi fitur dari knowledge base-nya sendiri
+    ═══════════════════════════════════════════════════════ */
+    function buildPrompt(row) {
+      // Toleran terhadap header dengan spasi atau underscore
+      const namaProduk    = (
+        row['Nama_Produk']    || row['Nama Produk']    || ''
+      ).trim();
+      const targetKeyword = (
+        row['Target_Keyword'] || row['Target Keyword'] || ''
+      ).trim();
+
+      const keywordLine = targetKeyword
+        ? 'Keyword: ' + targetKeyword
+        : 'Keyword: (tidak dispesifikasikan — gunakan keyword paling relevan dan natural untuk produk ini)';
+
+      const prompt = [
+        'Lu adalah Expert Sneaker Copywriter dan spesialis SEO. User hanya akan memberikan:',
+        'Nama Produk: ' + namaProduk,
+        keywordLine,
+        '',
+        'Tugasmu: Gunakan knowledge base internalmu untuk menganalisis spesifikasi dan teknologi dari sepatu tersebut secara otomatis. Buat artikel SEO / Deskripsi Produk komprehensif yang langsung siap tayang.',
+        '',
+        '=== STRUKTUR WAJIB untuk isi deskripsi_lengkap ===',
+        '',
+        '1. Paragraf Pembuka:',
+        '   Masukkan nama produk di awal paragraf, jelaskan esensi dan daya tarik utamanya secara memikat.',
+        '',
+        '2. Penjelasan Fitur Lengkap (Gunakan 2 Sub-heading ###):',
+        '   Pecah penjelasan teknis (bantalan, traksi, material, dll.) ke dalam dua bagian terpisah agar detail dan tidak membosankan.',
+        '',
+        '3. Fitur Utama dan Spesifikasi:',
+        '   Buat bullet points (format: - **Nama Fitur**: deskripsi singkat) keunggulan produk.',
+        '',
+        '4. Inspirasi Gaya:',
+        '   Berikan 3 ide mix & match pakaian (contoh: Casual, Sporty, Street Style) dalam format bernomor.',
+        '',
+        '5. Pertanyaan Umum (FAQ):',
+        '   Buat 3 FAQ relevan (misal: sizing, fungsi lapangan, kenyamanan) dalam format:',
+        '   **Q: pertanyaan?** diikuti **A: jawaban.**',
+        '',
+        '=== SYARAT TEKNIS ===',
+        '- Gaya bahasa artikel editorial profesional namun engaging ala sneakerhead.',
+        '- Gunakan format Markdown (### untuk sub-heading, ** untuk bold) di dalam teks.',
+        '- Gunakan \\n untuk line break antar paragraf/section agar struktur rapi.',
+        '- Total artikel minimal 600 kata.',
+        '',
+        '=== OUTPUT ===',
+        'LU WAJIB MENGEMBALIKAN HANYA FORMAT JSON MURNI YANG VALID.',
+        'Pastikan teks Markdown di-escape dengan benar agar JSON tidak rusak saat di-parse.',
+        'Gunakan tepat 3 kunci:',
+        '{',
+        '  "title": "Meta Title maks 60 karakter",',
+        '  "meta_desc": "Meta Description maks 155 karakter, persuasif, mengandung keyword",',
+        '  "deskripsi_lengkap": "Seluruh artikel 600 kata dengan struktur di atas, gunakan \\n untuk merapikan paragraf"',
+        '}'
+      ].join('\n');
+
+      return prompt;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       BACKEND SERVER CALLER (primary path)
+       POST http://localhost:3001/api/generate-seo
+       Server menangani Tavily RAG + Groq secara internal
+    ═══════════════════════════════════════════════════════ */
+    const BACKEND_URL = 'http://localhost:3001/api/generate-seo';
+
+    async function callBackendServer(row) {
+      const namaProduk    = (row['Nama_Produk']    || row['Nama Produk']    || '').trim();
+      const targetKeyword = (row['Target_Keyword'] || row['Target Keyword'] || '').trim();
+
+      if (!licenseValidated || !licenseCode) {
+        throw new Error('Kode lisensi belum divalidasi.');
+      }
+
+      const res = await fetch(BACKEND_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ namaProduk, targetKeyword, licenseCode }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || `Backend HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Backend mengembalikan error.');
+
+      // Update quota badge setelah setiap generate sukses
+      if (typeof data.remaining === 'number') {
+        updateQuotaBadge(data.remaining);
+      }
+
+      return { json: data, providerId: 'backend' };
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       PROVIDER AUTO-DETECT (fallback path — direct API)
+       Input  : raw API key string
+       Output : { id, name, endpoint, model } atau null jika tidak dikenal
+    ═══════════════════════════════════════════════════════ */
+    function detectProvider(key) {
+      if (key.startsWith('AIza')) return {
+        id:       'gemini',
+        name:     'Google Gemini',
+        endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+        model:    'gemini-2.0-flash'
+      };
+      if (key.startsWith('gsk_')) return {
+        id:       'groq',
+        name:     'Groq (Llama3.3)',
+        endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+        model:    'llama-3.3-70b-versatile'
+      };
+      if (key.startsWith('sk-')) return {
+        id:       'openai',
+        name:     'OpenAI (GPT-4o mini)',
+        endpoint: 'https://api.openai.com/v1/chat/completions',
+        model:    'gpt-4o-mini'
+      };
+      return null;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       UNIVERSAL AI CALLER
+       Routes ke provider yang tepat berdasarkan detectProvider()
+    ═══════════════════════════════════════════════════════ */
+    async function callAIAPI(apiKey, prompt, provider) {
+      let endpoint, headers, body;
+
+      if (provider.id === 'gemini') {
+        // ── Google Gemini: key via query param, struktur contents[] ──
+        endpoint = `${provider.endpoint}?key=${apiKey}`;
+        headers  = { 'Content-Type': 'application/json' };
+        body = {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.8,
+            maxOutputTokens: 2048,
+            responseMimeType: 'application/json'
+          },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+          ]
+        };
+
+      } else {
+        // ── Groq & OpenAI: Bearer token, struktur messages[] OpenAI-compatible ──
+        endpoint = provider.endpoint;
+        headers  = {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        };
+        body = {
+          model: provider.model,
+          temperature: 0.8,
+          max_tokens:  2048,
+          response_format: { type: 'json_object' },
+          messages: [
+            {
+              role:    'system',
+              content: 'Kamu adalah Expert Sneaker Copywriter dan spesialis SEO Indonesia. ' +
+                       'Selalu balas HANYA dengan JSON murni yang valid, ' +
+                       'menggunakan tepat 3 kunci: title, meta_desc, deskripsi_lengkap. ' +
+                       'Escape semua karakter khusus di dalam string JSON dengan benar (termasuk tanda kutip dan newline). ' +
+                       'Jangan tambahkan teks, komentar, atau markdown di luar JSON.'
+            },
+            {
+              role:    'user',
+              content: prompt
+            }
+          ]
+        };
+      }
+
+      const res = await fetch(endpoint, {
+        method:  'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        const errMsg  = errBody?.error?.message || `HTTP ${res.status} dari ${provider.name}`;
+        throw new Error(errMsg);
+      }
+
+      const json = await res.json();
+      return { json, providerId: provider.id };
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       RESPONSE PARSER — handles Gemini AND OpenAI/Groq shapes
+    ═══════════════════════════════════════════════════════ */
+    function parseAIResponse({ json, providerId }) {
+      // ── Backend path: server sudah return object bersih { title, meta_desc, deskripsi_lengkap } ──
+      if (providerId === 'backend') {
+        const { title, meta_desc, deskripsi_lengkap } = json;
+        if (!title || !meta_desc || !deskripsi_lengkap) {
+          throw new Error('Kunci JSON tidak lengkap dari backend — butuh: title, meta_desc, deskripsi_lengkap.');
+        }
+        return {
+          Meta_Title:       String(title).slice(0, 70),
+          Meta_Description: String(meta_desc).slice(0, 160),
+          Deskripsi_Produk: String(deskripsi_lengkap)
+        };
+      }
+
+      // ── Direct API path: ekstrak rawText sesuai provider ──
+      let rawText;
+      if (providerId === 'gemini') {
+        rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      } else {
+        // OpenAI / Groq
+        rawText = json?.choices?.[0]?.message?.content || '';
+      }
+
+      if (!rawText.trim()) throw new Error('Respons AI kosong.');
+
+      let parsed;
+      try {
+        parsed = JSON.parse(rawText);
+      } catch {
+        const match = rawText.match(/\{[\s\S]*\}/);
+        if (!match) throw new Error('Format JSON tidak ditemukan dalam respons AI.');
+        parsed = JSON.parse(match[0]);
+      }
+
+      const { title, meta_desc, deskripsi_lengkap } = parsed;
+      if (!title || !meta_desc || !deskripsi_lengkap) {
+        throw new Error('Kunci JSON tidak lengkap — butuh: title, meta_desc, deskripsi_lengkap.');
+      }
+
+      return {
+        Meta_Title:       String(title).slice(0, 70),
+        Meta_Description: String(meta_desc).slice(0, 160),
+        Deskripsi_Produk: String(deskripsi_lengkap)
+      };
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       GENERATE BULK — REAL GEMINI API, ASYNC PER BARIS
+    ═══════════════════════════════════════════════════════ */
+    let generatedResults = [];
+
+    async function generateBulk() {
+      if (!csvData.length) return;
+
+      // ── Wajib: validasi lisensi dulu ──
+      if (!licenseValidated) {
+        showLicenseError('⚠ Validasi kode lisensi terlebih dahulu sebelum generate.');
+        $('licenseInput').focus();
+        return;
+      }
+      if (licenseRemaining <= 0) {
+        showLicenseError('❌ Kuota lisensi sudah habis. Hubungi admin.');
+        return;
+      }
+
+      const total = csvData.length;
+      generatedResults = [];
+
+      const logBox  = $('logBox');
+      const progBar = $('bulkProgressBar');
+      let   failCount = 0;
+
+      // ── Reset UI ──
+      logBox.innerHTML = '';
+      $('apiErrToast').classList.remove('show');
+      $('bulkLogSection').classList.add('show');
+      $('bulkProgress').classList.add('show');
+      $('downloadResultsWrap').classList.remove('show');
+      $('bulkBtn').disabled = true;
+      $('bulkBtnText').textContent = 'Menghubungi Server (RAG + Groq)...';
+      progBar.style.width = '0%';
+      updateProgressUI(0, total, '🌐 Menghubungi backend server...', '');
+
+      console.group(
+        `%c[SEO Generator] Backend RAG Bulk — ${total} produk`,
+        'color:#818cf8; font-weight:bold'
+      );
+      appendLog('header',
+        `🤖 Mengirim ${total} produk ke backend (Tavily RAG + Groq)...`, null
+      );
+
+      // ── Loop per baris — tiap baris hit backend server ──
+      for (let i = 0; i < total; i++) {
+        const row     = csvData[i];
+        const rowNum  = i + 1;
+        const pct     = Math.round((rowNum / total) * 100);
+
+        const productName = (
+          row['Nama_Produk'] || row['Nama Produk'] || `Produk #${rowNum}`
+        ).trim();
+        const shortName = productName.length > 35
+          ? productName.slice(0, 35) + '…'
+          : productName;
+
+        // Label progress dinamis
+        updateProgressUI(rowNum, total,
+          `🌐 Searching + Generate:`, shortName
+        );
+        progBar.style.width = `${pct}%`;
+        $('bulkBtnText').textContent = `Row ${rowNum}/${total} — sedang diproses...`;
+
+        let generated;
+        try {
+          // Panggil backend: Tavily search → Groq generate
+          const apiResult = await callBackendServer(row);
+
+          // Parse respons bersih dari backend
+          generated = parseAIResponse(apiResult);
+
+          // Log sukses
+          console.log(`%c[✓ Row ${rowNum}] ${productName}`,
+            'color:#34d399', generated
+          );
+          appendLog('row', null, { idx: rowNum, row, generated, productName, error: null });
+
+        } catch (err) {
+          // Jangan hentikan proses — tandai baris gagal
+          failCount++;
+          const errMsg = err.message || 'Unknown error';
+          console.error(`[✗ Row ${rowNum}] ${productName}:`, errMsg);
+          appendLog('row', null, {
+            idx: rowNum, row, generated: null,
+            productName, error: errMsg
+          });
+          generated = {
+            Meta_Title:       '[ERROR] ' + productName,
+            Meta_Description: errMsg.substring(0, 155),
+            Deskripsi_Produk: 'Generate gagal: ' + errMsg
+          };
+        }
+
+        // Simpan (sukses maupun gagal — agar baris tetap lengkap di CSV)
+        generatedResults.push({ ...row, ...generated });
+      }
+
+      // ── Selesai ──
+      progBar.style.width = '100%';
+      const doneLabel = failCount > 0
+        ? `⚠ Selesai dengan ${failCount} error dari ${total} produk`
+        : `✓ Semua ${total} produk berhasil!`;
+      updateProgressUI(total, total, doneLabel, '');
+      $('bulkBtn').disabled = false;
+      $('bulkBtnText').textContent = 'Generate Ulang';
+      appendLog('done',
+        failCount > 0
+          ? `⚠️ Selesai. ${total - failCount} sukses, ${failCount} baris error. Cek log di atas.`
+          : `✅ Semua ${total} produk berhasil digenerate oleh Gemini AI!`,
+        null
+      );
+      console.groupEnd();
+
+      // Tombol download
+      $('resultSummary').textContent =
+        `${total} produk · ${failCount > 0 ? failCount + ' error · ' : ''}` +
+        `3 kolom baru: Meta_Title, Meta_Description, Deskripsi_Produk`;
+      $('downloadResultsWrap').classList.add('show');
+      $('downloadResultsWrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    /* ── Update progress bar label secara dinamis ── */
+    function updateProgressUI(current, total, labelMain, labelProduct) {
+      $('bulkProgressCount').innerHTML =
+        `<span class="progress-count">${current} / ${total}</span>`;
+      $('bulkProgressLabel').innerHTML =
+        `<span class="progress-label-main">${labelMain}</span>` +
+        (labelProduct
+          ? `&nbsp;<span class="progress-label-product">${labelProduct}</span>`
+          : '');
+    }
+
+    /* ── Append log entry ── */
+    function appendLog(type, message, data) {
+      const logBox = $('logBox');
+
+      if (type === 'header' || type === 'done') {
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        div.innerHTML =
+          `<span style="color:${type==='done'?'#34d399':'#64748b'}; font-style:italic;">${message}</span>`;
+        logBox.appendChild(div);
+        logBox.scrollTop = logBox.scrollHeight;
+        return;
+      }
+
+      // type === 'row'
+      const { idx, row, generated, productName, error } = data;
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04);';
+
+      // Input row summary
+      const inputDiv = document.createElement('div');
+      inputDiv.className = 'log-entry';
+      const keys = Object.keys(row).slice(0, 3);
+      const kvHtml = keys.map(k =>
+        `<span class="log-key">${k}</span>` +
+        `<span class="log-sep">: </span>` +
+        `<span class="log-val">"${(row[k]||'').substring(0,32)}${(row[k]||'').length>32?'…':''}"</span>`
+      ).join('<span class="log-sep">,  </span>');
+      inputDiv.innerHTML = `<span class="log-idx">[${idx}]</span> <span>{ ${kvHtml} }</span>`;
+
+      // Output panel: green (sukses) atau red (error)
+      const outDiv = document.createElement('div');
+      if (error) {
+        // ── Error state ──
+        outDiv.style.cssText =
+          'margin-top:4px; padding:6px 10px; font-size:11.5px;' +
+          'background:rgba(239,68,68,0.08); border-left:2px solid rgba(239,68,68,0.45);' +
+          'border-radius:0 6px 6px 0; color:#fca5a5;';
+        outDiv.innerHTML =
+          `<span style="color:#f87171; font-weight:700;">✗ ERROR:</span> ` +
+          `<span>${error.substring(0, 120)}${error.length > 120 ? '…' : ''}</span>`;
+      } else {
+        // ── Success state ──
+        outDiv.className = 'log-generated';
+        outDiv.innerHTML =
+          `<span class="log-gen-key">Meta_Title</span>` +
+          `<span class="log-sep">: </span>` +
+          `<span class="log-gen-val">"${generated.Meta_Title.substring(0,55)}${generated.Meta_Title.length>55?'…':''}"</span>` +
+          `<br>` +
+          `<span class="log-gen-key">Deskripsi_Produk</span>` +
+          `<span class="log-sep">: </span>` +
+          `<span class="log-gen-val">"${generated.Deskripsi_Produk.substring(0,65)}…"</span>`;
+      }
+
+      wrapper.appendChild(inputDiv);
+      wrapper.appendChild(outDiv);
+      logBox.appendChild(wrapper);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    /* ── Clear log ── */
+    function clearLog() {
+      $('logBox').innerHTML = '';
+    }
+
+    /* ─────────────────────────────────────────
+       DOWNLOAD HASIL GENERATE (CSV)
+       Kolom: semua kolom asal + Meta_Title,
+              Meta_Description, Deskripsi_Produk
+    ───────────────────────────────────────── */
+    function downloadResults() {
+      if (!generatedResults.length) return;
+
+      const DELIM = ';';
+
+      // Bungkus teks dengan double-quote, escape inner quote
+      function q(val) {
+        return '"' + String(val == null ? '' : val).replace(/"/g, '""') + '"';
+      }
+
+      // Header: kolom asli + 3 kolom baru
+      const outputCols = [...csvHeaders, 'Meta_Title', 'Meta_Description', 'Deskripsi_Produk'];
+
+      const headerRow = outputCols.join(DELIM);
+      const dataRows  = generatedResults.map(row =>
+        outputCols.map((col, i) => {
+          const val = row[col] == null ? '' : String(row[col]);
+          // Kolom numerik (Harga) jangan di-quote
+          if (col === 'Harga' && /^\d+$/.test(val.trim())) return val.trim();
+          return q(val);
+        }).join(DELIM)
+      );
+
+      const BOM = '\uFEFF';
+      const csvContent = BOM + [headerRow, ...dataRows].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href     = url;
+      a.download = 'hasil_optimasi_seo.csv';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+
+      // Feedback singkat pada tombol
+      const btn  = $('btnDownloadResults');
+      const orig = btn.innerHTML;
+      btn.innerHTML = `
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        File Berhasil Didownload!`;
+      btn.style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)';
+      setTimeout(() => {
+        btn.innerHTML = orig;
+        btn.style.background = '';
+      }, 3000);
+    }
+
+
+    /* ═══════════════════════════════════════════
+       ── SINGLE / MANUAL FORM ──
+    ═══════════════════════════════════════════ */
+
+    /* Feature textarea counter */
+    $('featurePoints').addEventListener('input', function() {
+      const len = this.value.length;
+      const el  = $('featureCounter');
+      el.textContent = `${len} / 1000 karakter`;
+      el.className = 'char-counter' + (len > 900 ? ' bad' : len > 700 ? ' warn' : '');
+    });
+
+    /* Result char/word counters */
+    function updateCount(taId, cId, max, unit) {
+      const val   = $(taId).value;
+      const len   = val.length;
+      const words = val.trim() === '' ? 0 : val.trim().split(/\s+/).length;
+      const el    = $(cId);
+      if (unit === 'kata') {
+        el.textContent = `${words} kata`;
+        el.className = 'char-counter' + (words >= 80 ? ' ok' : words >= 40 ? ' warn' : '');
+      } else {
+        el.textContent = `${len} / ${max} karakter`;
+        if (len > max)              el.className = 'char-counter bad';
+        else if (len >= max * 0.85) el.className = 'char-counter ok';
+        else                        el.className = 'char-counter';
+      }
+    }
+
+    /* Validation */
+    function validate() {
+      let ok = true;
+      [
+        ['productName',   'productName-error'],
+        ['mainKeyword',   'mainKeyword-error'],
+        ['featurePoints', 'featurePoints-error'],
+      ].forEach(([fId, eId]) => {
+        const f = $(fId), e = $(eId);
+        if (!f.value.trim()) {
+          e.classList.add('show'); f.classList.add('error'); ok = false;
+        } else {
+          e.classList.remove('show'); f.classList.remove('error');
+        }
+      });
+      return ok;
+    }
+
+    /* Generate content */
+    function generateContent(name, kw, features) {
+      name = name.trim(); kw = kw.trim();
+      const lines = features.split('\n')
+        .map(l => l.replace(/^[-•*]\s*/, '').trim()).filter(l => l.length > 0);
+      const featureSummary = lines.slice(0, 3).join(', ');
+      const allFeatures    = lines.join(', ');
+
+      let metaTitle = `${name} – ${kw} | Terbaik & Terpercaya`;
+      if (metaTitle.length > 60) metaTitle = `${name} | ${kw}`.slice(0, 60);
+
+      const metaDesc = (
+        `Temukan ${name} – pilihan terbaik untuk ${kw}. ` +
+        `Dilengkapi ${featureSummary}. ` +
+        `Kualitas premium, harga kompetitif. Beli sekarang & dapatkan penawaran terbaik!`
+      ).slice(0, 160);
+
+      const bullets = lines.map(f => `  • ${f}`).join('\n');
+      const prodDesc =
+`${name}
+
+Apakah Anda sedang mencari ${kw} yang berkualitas tinggi dan bisa diandalkan? ${name} hadir sebagai solusi terbaik untuk memenuhi kebutuhan Anda. Dirancang dengan teknologi mutakhir dan bahan premium, produk ini memberikan pengalaman yang tak tertandingi.
+
+✨ FITUR UNGGULAN:
+${bullets}
+
+🎯 MENGAPA MEMILIH ${name.toUpperCase()}?
+${name} telah menjadi pilihan utama bagi mereka yang menginginkan perpaduan sempurna antara kualitas, kenyamanan, dan performa. Setiap detail dirancang secara cermat untuk memastikan kepuasan pengguna yang optimal dalam setiap penggunaan.
+
+🔍 COCOK UNTUK:
+Siapa pun yang mencari ${kw} dengan standar terbaik akan menemukan bahwa ${name} adalah investasi yang tepat. Baik untuk penggunaan sehari-hari maupun kebutuhan profesional, produk ini siap memenuhi semua ekspektasi Anda.
+
+📦 DETAIL PRODUK:
+${allFeatures}.
+
+Jangan lewatkan kesempatan untuk memiliki ${name}. Segera tambahkan ke keranjang Anda dan rasakan perbedaannya!`;
+
+      return { metaTitle, metaDesc, prodDesc };
+    }
+
+    /* Loading state */
+    function setLoading(on) {
+      const btn = $('generateBtn');
+      if (on) {
+        btn.disabled = true;
+        $('btnIcon').innerHTML = '';
+        $('btnText').innerHTML = 'Generating&nbsp;<span class="dot-bounce"></span><span class="dot-bounce"></span><span class="dot-bounce"></span>';
+      } else {
+        btn.disabled = false;
+        $('btnIcon').innerHTML = `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>`;
+        $('btnText').innerHTML = 'Generate SEO &amp; Deskripsi';
+      }
+    }
+
+    /* Show results */
+    function showResults(data) {
+      $('metaTitleOutput').value = data.metaTitle;
+      $('metaDescOutput').value  = data.metaDesc;
+      $('prodDescOutput').value  = data.prodDesc;
+      updateCount('metaTitleOutput', 'metaTitleCount', 60);
+      updateCount('metaDescOutput',  'metaDescCount',  160);
+      updateCount('prodDescOutput',  'prodDescCount',  0, 'kata');
+
+      const sec = $('resultsSection');
+      sec.style.opacity = '1';
+      sec.style.transform = 'translateY(0)';
+      sec.style.pointerEvents = 'auto';
+      setTimeout(() => sec.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+    }
+
+    /* Form submit */
+    $('seoForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!validate()) return;
+      setLoading(true);
+      setTimeout(() => {
+        const data = generateContent($('productName').value, $('mainKeyword').value, $('featurePoints').value);
+        showResults(data);
+        setLoading(false);
+      }, 1200);
+    });
+
+    /* Copy single */
+    function copyText(taId, btn) {
+      const text = $(taId).value;
+      if (!text.trim()) return;
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.innerHTML;
+        btn.classList.add('copied');
+        btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Tersalin!`;
+        setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = orig; }, 2000);
+      });
+    }
+
+    /* Copy all */
+    function copyAll() {
+      const mt = $('metaTitleOutput').value;
+      const md = $('metaDescOutput').value;
+      const pd = $('prodDescOutput').value;
+      if (!mt && !md && !pd) return;
+      const txt = `=== META TITLE ===\n${mt}\n\n=== META DESCRIPTION ===\n${md}\n\n=== DESKRIPSI PRODUK ===\n${pd}`;
+      navigator.clipboard.writeText(txt).then(() => {
+        const btn = $('copyAllBtn');
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Semua Tersalin!`;
+        btn.style.color = '#34d399'; btn.style.borderColor = 'rgba(16,185,129,0.4)'; btn.style.background = 'rgba(16,185,129,0.12)';
+        setTimeout(() => { btn.innerHTML = orig; btn.style.color = btn.style.borderColor = btn.style.background = ''; }, 2500);
+      });
+    }
+
+    /* Reset */
+    function resetAll() {
+      $('seoForm').reset();
+      $('featureCounter').textContent = '0 / 1000 karakter';
+      $('featureCounter').className   = 'char-counter';
+      ['productName','mainKeyword','featurePoints'].forEach(id => $(id).classList.remove('error'));
+      ['productName-error','mainKeyword-error','featurePoints-error'].forEach(id => $(id).classList.remove('show'));
+      $('metaTitleOutput').value = ''; $('metaDescOutput').value = ''; $('prodDescOutput').value = '';
+      ['metaTitleCount','metaDescCount','prodDescCount'].forEach(id => {
+        const el = $(id);
+        el.className = 'char-counter';
+        el.textContent = id === 'prodDescCount' ? '0 kata' : id === 'metaTitleCount' ? '0 / 60 karakter' : '0 / 160 karakter';
+      });
+      const sec = $('resultsSection');
+      sec.style.opacity = '0'; sec.style.transform = 'translateY(12px)'; sec.style.pointerEvents = 'none';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
