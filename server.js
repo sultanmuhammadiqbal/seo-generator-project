@@ -4,6 +4,7 @@
  * Flow   : License validate → Tavily RAG → Groq LLM → return JSON
  */
 
+import { readFile } from 'node:fs/promises';
 import express   from 'express';
 import cors      from 'cors';
 import dotenv    from 'dotenv';
@@ -236,6 +237,19 @@ async function callGroq(prompt) {
 /* ═════════════════════════════════════════
    ENDPOINTS
 ═════════════════════════════════════════ */
+
+/* Homepage fallback for Vercel's Express function.
+   Vercel normally serves public/index.html via its CDN. If routing forwards
+   / or /index.html to Express, serve that same file from the function bundle. */
+app.get(['/', '/index.html'], async (_req, res) => {
+  try {
+    const html = await readFile(new URL('./public/index.html', import.meta.url), 'utf8');
+    res.type('html').set('Cache-Control', 'no-cache').send(html);
+  } catch (err) {
+    console.error('[homepage] Could not load public/index.html:', err.code || 'read-failure');
+    res.status(500).type('text').send('Homepage asset unavailable in server bundle.');
+  }
+});
 
 /* Health check */
 app.get('/api/health', (_req, res) => {
