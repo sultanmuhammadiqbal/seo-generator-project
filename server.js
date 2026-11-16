@@ -102,9 +102,9 @@ async function consumeLicense(code) {
 /* ─────────────────────────────────────────
    HELPER — TAVILY SEARCH (RAG)
 ───────────────────────────────────────── */
-async function tavilySearch(namaProduk) {
-  if (!TAVILY_KEY) {
-    console.warn('[Tavily] API key tidak diset — skip web search.');
+async function tavilySearch(namaProduk, apiKey = TAVILY_KEY) {
+  if (!apiKey) {
+    console.warn('[Tavily] Tidak ada key untuk request ini — skip web search.');
     return null;
   }
 
@@ -113,7 +113,7 @@ async function tavilySearch(namaProduk) {
 
   const res = await fetch(TAVILY_ENDPOINT, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TAVILY_KEY}` },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
       query,
       search_depth:        'advanced',
@@ -183,12 +183,12 @@ function buildPrompt(namaProduk, targetKeyword, ragContext) {
 /* ─────────────────────────────────────────
    HELPER — GROQ LLM
 ───────────────────────────────────────── */
-async function callGroq(prompt) {
-  if (!GROQ_KEY) throw new Error('GROQ_API_KEY belum diset di .env');
+async function callGroq(prompt, apiKey = GROQ_KEY) {
+  if (!apiKey) throw new Error('Groq API key belum tersedia.');
 
   const res = await fetch(GROQ_ENDPOINT, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
       model:           GROQ_MODEL,
       temperature:     0.8,
@@ -207,8 +207,8 @@ async function callGroq(prompt) {
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Groq HTTP ${res.status}`);
+    // Jangan teruskan pesan upstream yang mungkin memuat detail kredensial.
+    throw new Error(`Groq HTTP ${res.status}`);
   }
 
   const data    = await res.json();
@@ -236,6 +236,53 @@ async function callGroq(prompt) {
 /* ═════════════════════════════════════════
    ENDPOINTS
 ═════════════════════════════════════════ */
+
+/* Public BYOK endpoint: keys only live in this request; no database/license required.
+ * Never log, persist, echo, or cache credentials from this endpoint. */
+app.post('/api/generate-with-keys', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const payload = req.body || {};
+  const groqApiKey = typeof payload.groqApiKey === 'string' ? payload.groqApiKey.trim() : '';
+  const tavilyApiKey = typeof payload.tavilyApiKey === 'string' ? payload.tavilyApiKey.trim() : '';
+  const namaProduk = typeof payload.namaProduk === 'string' ? payload.namaProduk.trim() : '';
+  const targetKeyword = typeof payload.targetKeyword === 'string' ? payload.targetKeyword.trim() : '';
+  const featurePoints = typeof payload.featurePoints === 'string' ? payload.featurePoints.trim() : '';
+
+  if (!groqApiKey || groqApiKey.length > 256 || /\s/.test(groqApiKey)) {
+    return res.status(400).json({ success: false, error: 'Masukkan Groq API key yang valid.' });
+  }
+  if (tavilyApiKey.length > 256 || /\s/.test(tavilyApiKey)) {
+    return res.status(400).json({ success: false, error: 'Format Tavily API key tidak valid.' });
+  }
+  if (!namaProduk || namaProduk.length > 200) {
+    return res.status(400).json({ success: false, error: 'Nama produk wajib diisi (maks. 200 karakter).' });
+  }
+  if (targetKeyword.length > 200 || featurePoints.length > 1000) {
+    return res.status(400).json({ success: false, error: 'Keyword atau informasi fitur terlalu panjang.' });
+  }
+
+  try {
+    const ragContext = await tavilySearch(namaProduk, tavilyApiKey || null);
+    let prompt = buildPrompt(namaProduk, targetKeyword, ragContext);
+    if (featurePoints) {
+      prompt += '\n\nFakta produk yang disediakan pengguna (prioritaskan; jangan mengarang spesifikasi lain):\n' + featurePoints;
+    }
+    const result = await callGroq(prompt, groqApiKey);
+    return res.json({ success: true, mode: 'byok', rag: Boolean(ragContext), ...result });
+  } catch (err) {
+    // Raw upstream error must not be returned or logged: it could expose secrets.
+    const isUnauthorized = /Groq HTTP 401|Groq HTTP 403/.test(err.message);
+    const isRateLimited = /Groq HTTP 429/.test(err.message);
+    const message = isUnauthorized
+      ? 'Groq menolak API key. Periksa key dan izin akun Groq.'
+      : isRateLimited
+        ? 'Batas penggunaan Groq tercapai. Coba lagi nanti.'
+        : 'Generasi AI gagal. Periksa key, kuota, dan status layanan Groq.';
+    console.error('[BYOK] Request failed; category:', isUnauthorized ? 'auth' : isRateLimited ? 'quota' : 'upstream');
+    return res.status(isUnauthorized ? 401 : isRateLimited ? 429 : 502)
+      .json({ success: false, error: message });
+  }
+});
 
 /* Health check */
 app.get('/api/health', (_req, res) => {

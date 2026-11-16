@@ -663,8 +663,24 @@
     <!-- ══════════════ MAIN ══════════════ -->
     <main style="flex:1; max-width:900px; margin:0 auto; width:100%; padding:0 16px 72px;">
 
+      <section class="glass-card" style="margin-bottom:18px;padding:22px">
+        <h2 style="font-weight:800;color:#e2e8f0;margin-bottom:12px">Mode Penggunaan</h2>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;color:#cbd5e1;font-size:14px">
+          <label><input type="radio" name="appMode" value="demo" checked onchange="onModeChange()"> Demo — tanpa API</label>
+          <label><input type="radio" name="appMode" value="byok" onchange="onModeChange()"> AI — pakai key sendiri</label>
+        </div>
+        <p id="modeHint" style="color:#94a3b8;font-size:12px;margin-top:12px">Demo memakai template lokal, bukan AI sungguhan.</p>
+        <div id="byokSettings" style="display:none;margin-top:16px">
+          <label class="form-label" for="groqUserKey">Groq API Key (wajib)</label>
+          <input id="groqUserKey" type="password" autocomplete="off" class="input-field" placeholder="gsk_..." maxlength="256">
+          <label class="form-label" for="tavilyUserKey" style="margin-top:14px">Tavily API Key (opsional untuk riset)</label>
+          <input id="tavilyUserKey" type="password" autocomplete="off" class="input-field" placeholder="tvly-..." maxlength="256">
+          <p style="font-size:11px;color:#94a3b8;margin-top:12px;line-height:1.6">Key tidak disimpan di database atau browser storage. Key dikirim melalui HTTPS ke backend untuk setiap request AI. Gunakan hanya di situs yang dipercaya: pengelola hosting dapat mengakses request.</p>
+          <button type="button" onclick="clearUserKeys()" class="btn-template" style="margin-top:12px">Hapus API keys</button>
+        </div>
+      </section>
       <!-- ── LICENSE CODE BAR ── -->
-      <div class="license-bar">
+      <div class="license-bar" style="display:none">
         <div class="license-card">
           <!-- Icon -->
           <div class="license-icon">
@@ -1093,6 +1109,41 @@
        HELPERS
     ═══════════════════════════════════════════ */
     const $ = (id) => document.getElementById(id);
+
+    const currentMode = () => document.querySelector('input[name="appMode"]:checked').value;
+    function clearUserKeys() { $('groqUserKey').value = ''; $('tavilyUserKey').value = ''; }
+    function onModeChange() {
+      const ai = currentMode() === 'byok';
+      $('byokSettings').style.display = ai ? 'block' : 'none';
+      $('modeHint').textContent = ai
+        ? 'AI Groq asli menggunakan API key milikmu. Tavily bersifat opsional. Tidak membutuhkan lisensi.'
+        : 'Demo memakai template lokal, bukan AI sungguhan.';
+    }
+    async function requestWithUserKeys(row) {
+      const groqApiKey = $('groqUserKey').value.trim();
+      if (!groqApiKey) throw new Error('Masukkan Groq API key terlebih dahulu.');
+      const response = await fetch('/api/generate-with-keys', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+        body: JSON.stringify({
+          groqApiKey, tavilyApiKey: $('tavilyUserKey').value.trim(),
+          namaProduk: String(row['Nama_Produk'] || row['Nama Produk'] || '').trim(),
+          targetKeyword: String(row['Target_Keyword'] || row['Target Keyword'] || '').trim(),
+          featurePoints: String(row['Feature_Points'] || row['featurePoints'] || '').trim()
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) throw new Error(data.error || 'Generasi AI gagal.');
+      return { json: data, providerId: 'backend' };
+    }
+    function demoFromRow(row) {
+      const name = String(row['Nama_Produk'] || row['Nama Produk'] || '').trim();
+      if (!name) throw new Error('Nama_Produk kosong.');
+      const keyword = String(row['Target_Keyword'] || row['Target Keyword'] || name).trim();
+      const features = String(row['Feature_Points'] || row['featurePoints'] || 'Spesifikasi produk perlu diverifikasi.').trim();
+      const result = generateContent(name, keyword, features);
+      return { Meta_Title: result.metaTitle, Meta_Description: result.metaDesc,
+        Deskripsi_Produk: '[CONTOH DEMO - BUKAN AI, VERIFIKASI SEBELUM PUBLIKASI]' + '\n\n' + result.prodDesc };
+    }
     let csvData = [];      // parsed CSV rows
     let csvHeaders = [];   // parsed CSV headers
 
@@ -1689,15 +1740,8 @@
     async function generateBulk() {
       if (!csvData.length) return;
 
-      // ── Wajib: validasi lisensi dulu ──
-      if (!licenseValidated) {
-        showLicenseError('⚠ Validasi kode lisensi terlebih dahulu sebelum generate.');
-        $('licenseInput').focus();
-        return;
-      }
-      if (licenseRemaining <= 0) {
-        showLicenseError('❌ Kuota lisensi sudah habis. Hubungi admin.');
-        return;
+      if (currentMode() === 'byok' && !$('groqUserKey').value.trim()) {
+        alert('Masukkan Groq API key untuk AI Mode.'); $('groqUserKey').focus(); return;
       }
 
       const total = csvData.length;
@@ -1709,14 +1753,14 @@
 
       // ── Reset UI ──
       logBox.innerHTML = '';
-      $('apiErrToast').classList.remove('show');
+      $('licenseErrToast').classList.remove('show');
       $('bulkLogSection').classList.add('show');
       $('bulkProgress').classList.add('show');
       $('downloadResultsWrap').classList.remove('show');
       $('bulkBtn').disabled = true;
-      $('bulkBtnText').textContent = 'Menghubungi Server (RAG + Groq)...';
+      $('bulkBtnText').textContent = currentMode() === 'demo' ? 'Menyiapkan demo...' : 'Menghubungi Groq...';
       progBar.style.width = '0%';
-      updateProgressUI(0, total, '🌐 Menghubungi backend server...', '');
+      updateProgressUI(0, total, currentMode() === 'demo' ? 'Membuat demo...' : 'Menghubungi Groq...', '');
 
       console.group(
         `%c[SEO Generator] Backend RAG Bulk — ${total} produk`,
@@ -1749,10 +1793,8 @@
         let generated;
         try {
           // Panggil backend: Tavily search → Groq generate
-          const apiResult = await callBackendServer(row);
-
-          // Parse respons bersih dari backend
-          generated = parseAIResponse(apiResult);
+          generated = currentMode() === 'demo' ? demoFromRow(row)
+            : parseAIResponse(await requestWithUserKeys(row));
 
           // Log sukses
           console.log(`%c[✓ Row ${rowNum}] ${productName}`,
@@ -1791,7 +1833,7 @@
       appendLog('done',
         failCount > 0
           ? `⚠️ Selesai. ${total - failCount} sukses, ${failCount} baris error. Cek log di atas.`
-          : `✅ Semua ${total} produk berhasil digenerate oleh Gemini AI!`,
+          : `✅ Semua ${total} produk selesai dalam ${currentMode() === 'demo' ? 'Demo Mode' : 'AI Mode (Groq)'}!`,
         null
       );
       console.groupEnd();
@@ -2053,15 +2095,25 @@ Jangan lewatkan kesempatan untuk memiliki ${name}. Segera tambahkan ke keranjang
     }
 
     /* Form submit */
-    $('seoForm').addEventListener('submit', (e) => {
+    $('seoForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!validate()) return;
       setLoading(true);
-      setTimeout(() => {
-        const data = generateContent($('productName').value, $('mainKeyword').value, $('featurePoints').value);
-        showResults(data);
-        setLoading(false);
-      }, 1200);
+      try {
+        const name = $('productName').value, keyword = $('mainKeyword').value, features = $('featurePoints').value;
+        if (currentMode() === 'demo') {
+          const result = generateContent(name, keyword, features);
+          result.prodDesc = '[CONTOH DEMO - BUKAN AI, VERIFIKASI SEBELUM PUBLIKASI]' + '\n\n' + result.prodDesc;
+          showResults(result);
+        } else {
+          const result = parseAIResponse(await requestWithUserKeys({
+            Nama_Produk: name, Target_Keyword: keyword, Feature_Points: features
+          }));
+          showResults({metaTitle: result.Meta_Title, metaDesc: result.Meta_Description, prodDesc: result.Deskripsi_Produk});
+        }
+      } catch (err) {
+        alert(err.message || 'Generate gagal.');
+      } finally { setLoading(false); }
     });
 
     /* Copy single */
