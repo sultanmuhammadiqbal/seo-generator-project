@@ -8,7 +8,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node seed-keys.js",
-    "seed:print": "node seed-keys.js --print"
+    "seed:print": "node seed-keys.js --print",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18.0.0"
