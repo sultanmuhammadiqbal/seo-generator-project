@@ -1402,7 +1402,7 @@
       btn.textContent = 'Mengecek...';
 
       try {
-        const res  = await fetch('http://localhost:3001/api/validate-license', {
+        const res  = await fetch('/api/validate-license', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({ licenseCode: code }),
@@ -1499,10 +1499,10 @@
 
     /* ═══════════════════════════════════════════════════════
        BACKEND SERVER CALLER (primary path)
-       POST http://localhost:3001/api/generate-seo
+       POST /api/generate-seo
        Server menangani Tavily RAG + Groq secara internal
     ═══════════════════════════════════════════════════════ */
-    const BACKEND_URL = 'http://localhost:3001/api/generate-seo';
+    const BACKEND_URL = '/api/generate-seo';
 
     async function callBackendServer(row) {
       const namaProduk    = (row['Nama_Produk']    || row['Nama Produk']    || '').trim();

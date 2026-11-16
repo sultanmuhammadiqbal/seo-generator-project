@@ -26,15 +26,21 @@ const LICENSE_PREFIX  = 'license:';   // Redis key prefix
 /* ─────────────────────────────────────────
    UPSTASH REDIS
 ───────────────────────────────────────── */
-if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-  console.error('❌  UPSTASH_REDIS_REST_URL atau UPSTASH_REDIS_REST_TOKEN belum diset di .env');
-  process.exit(1);
+const REDIS_CONFIGURED = Boolean(
+  process.env.UPSTASH_REDIS_REST_URL &&
+  process.env.UPSTASH_REDIS_REST_TOKEN
+);
+
+if (!REDIS_CONFIGURED) {
+  console.warn('[Config] Upstash Redis belum dikonfigurasi. Endpoint berlisensi akan mengembalikan HTTP 503.');
 }
 
-const redis = new Redis({
-  url:   process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
+const redis = REDIS_CONFIGURED
+  ? new Redis({
+      url:   process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    })
+  : null;
 
 /* ─────────────────────────────────────────
    EXPRESS SETUP
@@ -70,6 +76,7 @@ function redisKey(code) {
  * Return: { valid, remaining }
  */
 async function checkLicense(code) {
+  if (!redis) throw new Error('Database lisensi belum dikonfigurasi.');
   if (!code || typeof code !== 'string') return { valid: false, remaining: 0 };
   const remaining = await redis.get(redisKey(code));
   if (remaining === null) return { valid: false, remaining: 0 };   // kode tidak ada
@@ -82,6 +89,7 @@ async function checkLicense(code) {
  * Return: saldo setelah dikurangi.
  */
 async function consumeLicense(code) {
+  if (!redis) throw new Error('Database lisensi belum dikonfigurasi.');
   const after = await redis.decr(redisKey(code));
   if (after < 0) {
     // Safety: kembalikan ke 0 jika negatif (race condition)
@@ -231,7 +239,13 @@ async function callGroq(prompt) {
 
 /* Health check */
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', model: GROQ_MODEL, tavily: !!TAVILY_KEY, groq: !!GROQ_KEY });
+  res.json({
+    status: 'ok',
+    model: GROQ_MODEL,
+    tavily: !!TAVILY_KEY,
+    groq: !!GROQ_KEY,
+    redis: REDIS_CONFIGURED,
+  });
 });
 
 /* ── POST /api/validate-license ─────────
@@ -239,6 +253,13 @@ app.get('/api/health', (_req, res) => {
    Body: { licenseCode: string }
 ──────────────────────────────────────── */
 app.post('/api/validate-license', async (req, res) => {
+  if (!redis) {
+    return res.status(503).json({
+      valid: false,
+      error: 'Database lisensi belum dikonfigurasi di environment deployment.',
+    });
+  }
+
   const { licenseCode } = req.body;
 
   if (!licenseCode || typeof licenseCode !== 'string') {
@@ -266,6 +287,13 @@ app.post('/api/validate-license', async (req, res) => {
    Body: { licenseCode, namaProduk, targetKeyword }
 ──────────────────────────────────────── */
 app.post('/api/generate-seo', async (req, res) => {
+  if (!redis) {
+    return res.status(503).json({
+      success: false,
+      error: 'Database lisensi belum dikonfigurasi di environment deployment.',
+    });
+  }
+
   const { licenseCode, namaProduk, targetKeyword } = req.body;
 
   /* ── Validasi input ── */
@@ -322,11 +350,15 @@ app.post('/api/generate-seo', async (req, res) => {
 /* ─────────────────────────────────────────
    START
 ───────────────────────────────────────── */
-app.listen(PORT, () => {
-  console.log(`\n🚀 SEO Generator Server  →  http://localhost:${PORT}`);
-  console.log(`   Health : http://localhost:${PORT}/api/health`);
-  console.log(`   Model  : ${GROQ_MODEL}`);
-  console.log(`   Tavily : ${TAVILY_KEY ? '✓ Aktif' : '✗ Tidak diset'}`);
-  console.log(`   Redis  : ✓ Upstash terhubung`);
-  console.log(`${'─'.repeat(55)}\n`);
-});
+export default app;
+
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`\n🚀 SEO Generator Server  →  http://localhost:${PORT}`);
+    console.log(`   Health : http://localhost:${PORT}/api/health`);
+    console.log(`   Model  : ${GROQ_MODEL}`);
+    console.log(`   Tavily : ${TAVILY_KEY ? '✓ Aktif' : '✗ Tidak diset'}`);
+    console.log(`   Redis  : ${REDIS_CONFIGURED ? '✓ Upstash terhubung' : '✗ Belum diset'}`);
+    console.log(`${'─'.repeat(55)}\n`);
+  });
+}
